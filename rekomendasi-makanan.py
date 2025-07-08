@@ -44,7 +44,20 @@ def rekomendasi_makanan(mood, lapar, waktu, df, jumlah=5):
 
 import streamlit as st
 
-st.title("🍽️ Sistem Rekomendasi Makanan Berdasarkan Mood")
+st.set_page_config(
+    page_title="Rekomendasi Makanan",
+    page_icon="🍽️",
+    layout="centered", # 'centered' lebih baik untuk mobile daripada 'wide'
+    initial_sidebar_state="collapsed",
+)
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 st.subheader("Masukkan Kondisi Anda:")
 
