@@ -8,46 +8,88 @@ Original file is located at
 """
 
 import pandas as pd
+import streamlit as st
 
 # Baca File
 file_path = 'nutrition.csv'
 df = pd.read_csv(file_path)
 
-def rekomendasi_makanan(mood, lapar, waktu, df, jumlah=5):
-    hasil = df.copy()
+# Fungsi Keanggotaan Fuzzy
+def fuzzy_lapar(lapar_score):
+    ringan = max(0, min(1, (5 - lapar_score)/5))
+    sedang = 1 - abs((lapar_score - 5)/5)
+    sangat_lapar = max(0, min(1, (lapar_score - 5)/5))
+    return {'ringan': ringan, 'sedang': sedang, 'sangat_lapar': sangat_lapar}
 
-    # Mood ke nutrisi
-    if mood == 'lelah':
-        hasil = hasil.sort_values(by=['calories', 'carbohydrate'], ascending=False)
-    elif mood == 'sedih':
-        hasil = hasil.sort_values(by='carbohydrate', ascending=False)
-    elif mood == 'ingin fokus':
-        hasil = hasil.sort_values(by='proteins', ascending=False)
-    elif mood == 'diet':
-        hasil = hasil[(hasil['fat'] < 10) & (hasil['calories'] < 250)]
+def fuzzy_mood(mood_score):
+    sedih = max(0, min(1, (5 - mood_score)/5))
+    fokus = 1 - abs((mood_score - 5)/5)
+    lelah = max(0, min(1, (mood_score - 5)/5))
+    return {'sedih': sedih, 'fokus': fokus, 'lelah': lelah}
 
-    # Tingkat lapar
-    if lapar == 'sangat lapar':
-        hasil = hasil[hasil['calories'] > 300]
-    elif lapar == 'ringan':
-        hasil = hasil[hasil['calories'] < 250]
+def fuzzy_waktu(waktu):  # string
+    return {
+        'sarapan': 1 if waktu == 'sarapan' else 0,
+        'makan siang': 1 if waktu == 'makan siang' else 0,
+        'makan malam': 1 if waktu == 'makan malam' else 0,
+    }
 
-    # Waktu makan
-    if waktu == 'sarapan':
-        hasil = hasil[hasil['carbohydrate'] > 20]
-    elif waktu == 'makan siang':
-        hasil = hasil[(hasil['calories'] >= 300) & (hasil['calories'] <= 600)]
-    elif waktu == 'makan malam':
-        hasil = hasil[(hasil['fat'] < 15) & (hasil['calories'] < 500)]
+# Inferensi Fuzzy Tsukamoto
+def inferensi_tsukamoto(mood_score, lapar_score, waktu_makan, df):
+    mood_fz = fuzzy_mood(mood_score)
+    lapar_fz = fuzzy_lapar(lapar_score)
+    waktu_fz = fuzzy_waktu(waktu_makan)
 
-    return hasil.head(jumlah)
+    rekomendasi = []
 
-import streamlit as st
+    for i, row in df.iterrows():
+        z_total = 0
+        alpha_total = 0
+
+        # Rule 1: sedih + ringan + sarapan -> karbo tinggi
+        alpha1 = min(mood_fz['sedih'], lapar_fz['ringan'], waktu_fz['sarapan'])
+        z1 = row['carbohydrate']
+        z_total += alpha1 * z1
+        alpha_total += alpha1
+
+        # Rule 2: fokus + sedang + makan siang -> protein tinggi
+        alpha2 = min(mood_fz['fokus'], lapar_fz['sedang'], waktu_fz['makan siang'])
+        z2 = row['proteins']
+        z_total += alpha2 * z2
+        alpha_total += alpha2
+
+        # Rule 3: lelah + sangat lapar + makan malam -> kalori tinggi
+        alpha3 = min(mood_fz['lelah'], lapar_fz['sangat_lapar'], waktu_fz['makan malam'])
+        z3 = row['calories']
+        z_total += alpha3 * z3
+        alpha_total += alpha3
+
+        # Rule 4: sedih + sedang + makan malam -> hindari lemak
+        alpha4 = min(mood_fz['sedih'], lapar_fz['sedang'], waktu_fz['makan malam'])
+        z4 = -row['fat']  # makin rendah fat makin baik
+        z_total += alpha4 * z4
+        alpha_total += alpha4
+
+        if alpha_total > 0:
+            skor = z_total / alpha_total
+        else:
+            skor = 0
+
+        rekomendasi.append((row['name'], skor, row))
+
+    rekomendasi = sorted(rekomendasi, key=lambda x: x[1], reverse=True)
+    top5 = pd.DataFrame([r[2] for r in rekomendasi[:5]])
+    return top5
+
+required_columns = ['name', 'calories', 'proteins', 'fat', 'carbohydrate', 'image']
+if not all(col in df.columns for col in required_columns):
+    st.error("Dataset harus memiliki kolom: name, calories, proteins, fat, carbohydrate, image")
+    st.stop()
 
 st.set_page_config(
     page_title="Rekomendasi Makanan",
     page_icon="🍽️",
-    layout="centered", # 'centered' lebih baik untuk mobile daripada 'wide'
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 hide_streamlit_style = """
@@ -70,7 +112,15 @@ with st.form("input_form"):
 
 # Tampilkan hasil jika tombol ditekan
 if submitted:
-    hasil = rekomendasi_makanan(mood, lapar, waktu, df)
+    mood_map = {'sedih': 2, 'ingin fokus': 5, 'lelah': 8}
+    lapar_map = {'ringan': 2, 'sedang': 5, 'sangat lapar': 8}
+
+    if mood == 'diet':
+        hasil = df[(df['calories'] < 250) & (df['fat'] < 10)].sort_values(by='calories').head(5)
+    else:
+        mood_score = mood_map[mood]
+        lapar_score = lapar_map[lapar]
+        hasil = inferensi_tsukamoto(mood_score, lapar_score, waktu, df)
 
     st.subheader("🍱 Rekomendasi Makanan untuk Anda:")
     if hasil.empty:
@@ -78,15 +128,10 @@ if submitted:
     else:
         for _, row in hasil.iterrows():
             st.markdown(f"### {row['name']}")
-            st.image(row['image'], width=300)
+            if pd.notna(row['image']) and row['image'] != "":
+                st.image(row['image'], width=300)
             st.markdown(f"**Kalori:** {row['calories']} kcal")
             st.markdown(f"**Protein:** {row['proteins']} g")
             st.markdown(f"**Lemak:** {row['fat']} g")
             st.markdown(f"**Karbohidrat:** {row['carbohydrate']} g")
             st.markdown("---")
-
-# Commented out IPython magic to ensure Python compatibility.
-# %%writefile requirements.txt
-# 
-# streamlit
-# pandas
