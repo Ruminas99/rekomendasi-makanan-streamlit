@@ -12,9 +12,6 @@ import pandas as pd
 # Baca File
 file_path = 'nutrition.csv'
 df = pd.read_csv(file_path)
-df.head()
-df.columns
-df.info()
 
 def rekomendasi_makanan(mood, lapar, waktu, df, jumlah=5):
     hasil = df.copy()
