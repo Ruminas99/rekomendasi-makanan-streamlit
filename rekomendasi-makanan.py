@@ -108,12 +108,17 @@ with st.form("input_form"):
     mood = st.selectbox("Mood Anda", ['lelah', 'sedih', 'ingin fokus', 'diet'])
     lapar = st.selectbox("Tingkat Lapar", ['sangat lapar', 'sedang', 'ringan'])
     waktu = st.selectbox("Waktu Makan", ['sarapan', 'makan siang', 'makan malam'])
+    vegetarian = st.checkbox("Vegetarian")
     submitted = st.form_submit_button("Tampilkan Rekomendasi")
 
 # Tampilkan hasil jika tombol ditekan
 if submitted:
     mood_map = {'sedih': 2, 'ingin fokus': 5, 'lelah': 8}
     lapar_map = {'ringan': 2, 'sedang': 5, 'sangat lapar': 8}
+    filtered_df = df.copy()
+
+    if vegetarian:
+        filtered_df = filtered_df[~filtered_df['name'].str.contains("daging|ayam|ikan|sapi", case=False, na=False)]
 
     if mood == 'diet':
         hasil = df[(df['calories'] < 250) & (df['fat'] < 10)].sort_values(by='calories').head(5)
