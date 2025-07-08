@@ -40,47 +40,59 @@ def inferensi_tsukamoto(mood_score, lapar_score, waktu_makan, df):
     lapar_fz = fuzzy_lapar(lapar_score)
     waktu_fz = fuzzy_waktu(waktu_makan)
 
+    rules = [
+        {'mood': 'sedih', 'lapar': 'ringan', 'waktu': 'sarapan', 'z_func': lambda r: r['carbohydrate']},
+        {'mood': 'sedih', 'lapar': 'sedang', 'waktu': 'sarapan', 'z_func': lambda r: (r['carbohydrate'] + r['proteins']) / 2},
+        {'mood': 'sedih', 'lapar': 'sangat_lapar', 'waktu': 'sarapan', 'z_func': lambda r: r['calories']},
+        {'mood': 'sedih', 'lapar': 'ringan', 'waktu': 'makan siang', 'z_func': lambda r: r['carbohydrate']},
+        {'mood': 'sedih', 'lapar': 'sedang', 'waktu': 'makan siang', 'z_func': lambda r: r['proteins']},
+        {'mood': 'sedih', 'lapar': 'sangat_lapar', 'waktu': 'makan siang', 'z_func': lambda r: r['calories']},
+        {'mood': 'sedih', 'lapar': 'ringan', 'waktu': 'makan malam', 'z_func': lambda r: -r['fat']},
+        {'mood': 'sedih', 'lapar': 'sedang', 'waktu': 'makan malam', 'z_func': lambda r: -r['fat']},
+        {'mood': 'sedih', 'lapar': 'sangat_lapar', 'waktu': 'makan malam', 'z_func': lambda r: r['calories']},
+        {'mood': 'lelah', 'lapar': 'ringan', 'waktu': 'sarapan', 'z_func': lambda r: (r['carbohydrate'] + r['proteins']) / 2},
+        {'mood': 'lelah', 'lapar': 'sedang', 'waktu': 'sarapan', 'z_func': lambda r: r['proteins']},
+        {'mood': 'lelah', 'lapar': 'sangat_lapar', 'waktu': 'sarapan', 'z_func': lambda r: r['calories']},
+        {'mood': 'lelah', 'lapar': 'ringan', 'waktu': 'makan siang', 'z_func': lambda r: (r['proteins'] + r['calories']) / 2},
+        {'mood': 'lelah', 'lapar': 'sedang', 'waktu': 'makan siang', 'z_func': lambda r: r['proteins']},
+        {'mood': 'lelah', 'lapar': 'sangat_lapar', 'waktu': 'makan siang', 'z_func': lambda r: r['calories']},
+        {'mood': 'lelah', 'lapar': 'ringan', 'waktu': 'makan malam', 'z_func': lambda r: r['proteins']},
+        {'mood': 'lelah', 'lapar': 'sedang', 'waktu': 'makan malam', 'z_func': lambda r: r['proteins']},
+        {'mood': 'lelah', 'lapar': 'sangat_lapar', 'waktu': 'makan malam', 'z_func': lambda r: r['calories']},
+        {'mood': 'fokus', 'lapar': 'ringan', 'waktu': 'sarapan', 'z_func': lambda r: r['carbohydrate']},
+        {'mood': 'fokus', 'lapar': 'sedang', 'waktu': 'sarapan', 'z_func': lambda r: r['proteins']},
+        {'mood': 'fokus', 'lapar': 'sangat_lapar', 'waktu': 'sarapan', 'z_func': lambda r: (r['proteins'] + r['calories']) / 2},
+        {'mood': 'fokus', 'lapar': 'ringan', 'waktu': 'makan siang', 'z_func': lambda r: r['carbohydrate']},
+        {'mood': 'fokus', 'lapar': 'sedang', 'waktu': 'makan siang', 'z_func': lambda r: r['proteins']},
+        {'mood': 'fokus', 'lapar': 'sangat_lapar', 'waktu': 'makan siang', 'z_func': lambda r: r['calories']},
+        {'mood': 'fokus', 'lapar': 'ringan', 'waktu': 'makan malam', 'z_func': lambda r: (r['proteins'] + r['carbohydrate']) / 2},
+        {'mood': 'fokus', 'lapar': 'sedang', 'waktu': 'makan malam', 'z_func': lambda r: r['proteins']},
+        {'mood': 'fokus', 'lapar': 'sangat_lapar', 'waktu': 'makan malam', 'z_func': lambda r: r['calories']},
+    ]
+
     rekomendasi = []
 
-    for i, row in df.iterrows():
+    for _, row in df.iterrows():
         z_total = 0
         alpha_total = 0
 
-        # Rule 1: sedih + ringan + sarapan -> karbo tinggi
-        alpha1 = min(mood_fz['sedih'], lapar_fz['ringan'], waktu_fz['sarapan'])
-        z1 = row['carbohydrate']
-        z_total += alpha1 * z1
-        alpha_total += alpha1
+        for rule in rules:
+            alpha = min(
+                mood_fz[rule['mood']],
+                lapar_fz[rule['lapar']],
+                waktu_fz[rule['waktu']]
+            )
+            z = rule['z_func'](row)
+            z_total += alpha * z
+            alpha_total += alpha
 
-        # Rule 2: fokus + sedang + makan siang -> protein tinggi
-        alpha2 = min(mood_fz['fokus'], lapar_fz['sedang'], waktu_fz['makan siang'])
-        z2 = row['proteins']
-        z_total += alpha2 * z2
-        alpha_total += alpha2
-
-        # Rule 3: lelah + sangat lapar + makan malam -> kalori tinggi
-        alpha3 = min(mood_fz['lelah'], lapar_fz['sangat_lapar'], waktu_fz['makan malam'])
-        z3 = row['calories']
-        z_total += alpha3 * z3
-        alpha_total += alpha3
-
-        # Rule 4: sedih + sedang + makan malam -> hindari lemak
-        alpha4 = min(mood_fz['sedih'], lapar_fz['sedang'], waktu_fz['makan malam'])
-        z4 = -row['fat']  # makin rendah fat makin baik
-        z_total += alpha4 * z4
-        alpha_total += alpha4
-
-        if alpha_total > 0:
-            skor = z_total / alpha_total
-        else:
-            skor = 0
-
+        skor = z_total / alpha_total if alpha_total > 0 else 0
         rekomendasi.append((row['name'], skor, row))
 
     rekomendasi = sorted(rekomendasi, key=lambda x: x[1], reverse=True)
     top5 = pd.DataFrame([r[2] for r in rekomendasi[:5]])
     return top5
-
+    
 required_columns = ['name', 'calories', 'proteins', 'fat', 'carbohydrate', 'image']
 if not all(col in df.columns for col in required_columns):
     st.error("Dataset harus memiliki kolom: name, calories, proteins, fat, carbohydrate, image")
