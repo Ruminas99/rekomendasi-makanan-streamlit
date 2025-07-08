@@ -45,8 +45,6 @@ def rekomendasi_makanan(mood, lapar, waktu, df, jumlah=5):
 
     return hasil.head(jumlah)
 
-pip install streamlit
-
 import streamlit as st
 
 st.title("🍽️ Sistem Rekomendasi Makanan Berdasarkan Mood")
