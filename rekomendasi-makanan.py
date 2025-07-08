@@ -10,7 +10,7 @@ Original file is located at
 import pandas as pd
 
 # Baca File
-file_path = '/content/drive/MyDrive/Dataset/nutrition.csv'
+file_path = 'nutrition.csv'
 df = pd.read_csv(file_path)
 df.head()
 df.columns
