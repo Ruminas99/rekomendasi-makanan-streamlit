@@ -108,11 +108,11 @@ with st.form("input_form"):
     mood = st.selectbox("Mood Anda", ['lelah', 'sedih', 'ingin fokus', 'diet'])
     lapar = st.selectbox("Tingkat Lapar", ['sangat lapar', 'sedang', 'ringan'])
     waktu = st.selectbox("Waktu Makan", ['sarapan', 'makan siang', 'makan malam'])
-    vegetarian = st.checkbox("Vegetarian")
+    vegetarian = st.checkbox("Saya vegetarian")
     submitted = st.form_submit_button("Tampilkan Rekomendasi")
 
-# Tampilkan hasil jika tombol ditekan
 if submitted:
+    # Mapping nilai linguistik ke skor numerik
     mood_map = {'sedih': 2, 'ingin fokus': 5, 'lelah': 8}
     lapar_map = {'ringan': 2, 'sedang': 5, 'sangat lapar': 8}
     filtered_df = df.copy()
@@ -121,15 +121,15 @@ if submitted:
         filtered_df = filtered_df[~filtered_df['name'].str.contains("daging|ayam|ikan|sapi", case=False, na=False)]
 
     if mood == 'diet':
-        hasil = df[(df['calories'] < 250) & (df['fat'] < 10)].sort_values(by='calories').head(5)
+        hasil = filtered_df[(filtered_df['calories'] < 250) & (filtered_df['fat'] < 10)].sort_values(by='calories').head(5)
     else:
         mood_score = mood_map[mood]
         lapar_score = lapar_map[lapar]
-        hasil = inferensi_tsukamoto(mood_score, lapar_score, waktu, df)
+        hasil = inferensi_tsukamoto(mood_score, lapar_score, waktu, filtered_df)
 
-    st.subheader("🍱 Rekomendasi Makanan untuk Anda:")
+    st.subheader("🍱 Rekomendasi Makanan:")
     if hasil.empty:
-        st.warning("Maaf, tidak ada rekomendasi yang cocok. Coba kombinasi lain.")
+        st.warning("Maaf, tidak ada rekomendasi yang cocok.")
     else:
         for _, row in hasil.iterrows():
             st.markdown(f"### {row['name']}")
