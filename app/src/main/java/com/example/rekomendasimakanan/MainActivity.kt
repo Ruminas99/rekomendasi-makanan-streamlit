@@ -9,7 +9,6 @@ import android.webkit.WebViewClient
 import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
@@ -20,14 +19,9 @@ class MainActivity : AppCompatActivity() {
 
         val webView: WebView = findViewById(R.id.webview)
         val progressBar: ProgressBar = findViewById(R.id.progressBar)
-        val swipeRefreshLayout: SwipeRefreshLayout = findViewById(R.id.swipeRefreshLayout)
 
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
-
-        swipeRefreshLayout.setOnRefreshListener {
-            webView.reload()
-        }
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -37,7 +31,7 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
-                swipeRefreshLayout.isRefreshing = false
+
             }
         }
 
